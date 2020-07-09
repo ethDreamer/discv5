@@ -431,6 +431,7 @@ impl Handler {
         self.active_requests_auth
             .insert(auth_tag, node_address.clone());
         // let the filter know we are expecting a response
+        trace!("Sending request to: {}", node_address);
         self.add_expected_response(node_address.socket_addr.clone());
         self.send(node_address.socket_addr.clone(), packet).await;
         self.active_requests.insert(node_address, call);
@@ -736,6 +737,7 @@ impl Handler {
     async fn send_next_request(&mut self, node_address: NodeAddress) {
         // ensure we are not over writing any existing requests
 
+        trace!("Sending next response");
         if self.active_requests.get(&node_address).is_none() {
             if let std::collections::hash_map::Entry::Occupied(mut entry) =
                 self.pending_requests.entry(node_address)
@@ -850,6 +852,7 @@ impl Handler {
     /// Handles a response to a request. Re-inserts the request call if the response is a multiple
     /// Nodes response.
     async fn handle_response(&mut self, node_address: NodeAddress, response: Response) {
+        trace!("Handling response");
         // Find a matching request, if any
         if let Some(mut request_call) = self.active_requests.remove(&node_address) {
             if request_call.id() != response.id {
@@ -868,6 +871,7 @@ impl Handler {
             // extra responses
             if let ResponseBody::Nodes { total, .. } = response.body {
                 if total > 1 {
+                    trace!("Multiple nodes response");
                     // This is a multi-response Nodes response
                     if let Some(remaining_responses) = request_call.remaining_responses.as_mut() {
                         *remaining_responses -= 1;
@@ -876,28 +880,33 @@ impl Handler {
                             // add back the request and send the response
                             self.active_requests
                                 .insert(node_address.clone(), request_call);
+                            trace!("Sending multiple response");
                             self.outbound_channel
                                 .send(HandlerResponse::Response(node_address, Box::new(response)))
                                 .await
                                 .unwrap_or_else(|_| ());
+                            trace!("Sent");
                             return;
                         }
                     } else {
                         // This is the first instance
                         request_call.remaining_responses = Some(total - 1);
                         // add back the request and send the response
+                        trace!("Sending first Nodes response");
                         self.active_requests
                             .insert(node_address.clone(), request_call);
                         self.outbound_channel
                             .send(HandlerResponse::Response(node_address, Box::new(response)))
                             .await
                             .unwrap_or_else(|_| ());
+                        trace!("Sent");
                         return;
                     }
                 }
             }
 
             // Remove the expected response
+            trace!("Removing response");
             self.remove_expected_response(node_address.socket_addr.clone());
             // The request matches report the response
             self.outbound_channel

@@ -31,7 +31,7 @@ impl SendHandler {
         send: tokio::net::udp::SendHalf,
     ) -> (mpsc::Sender<OutboundPacket>, oneshot::Sender<()>) {
         let (exit_send, exit) = oneshot::channel();
-        let (handler_send, handler_recv) = mpsc::channel(30);
+        let (handler_send, handler_recv) = mpsc::channel(3);
 
         let mut send_handler = SendHandler {
             send,

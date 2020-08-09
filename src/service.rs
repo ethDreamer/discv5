@@ -168,7 +168,7 @@ impl Service {
         );
 
         // create the required channels
-        let (discv5_send, discv5_recv) = mpsc::channel(30);
+        let (discv5_send, discv5_recv) = mpsc::channel(3);
         let (exit_send, exit) = oneshot::channel();
 
         config
@@ -228,7 +228,7 @@ impl Service {
                             self.request_enr(node_contact, Some(callback)).await;
                         }
                         ServiceRequest::RequestEventStream(callback) => {
-                            let (event_stream, event_stream_recv) = mpsc::channel(30);
+                            let (event_stream, event_stream_recv) = mpsc::channel(3);
                             self.event_stream = Some(event_stream);
                             if callback.send(event_stream_recv).is_err() {
                                 error!("Failed to return the event stream channel");

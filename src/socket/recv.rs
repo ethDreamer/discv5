@@ -96,6 +96,7 @@ impl RecvHandler {
     /// Handles in incoming packet. Passes through the filter, decodes and sends to the packet
     /// handler.
     async fn handle_inbound(&mut self, src: SocketAddr, length: usize) {
+        println!("RECV: Handling inbound packet");
         // Permit all expected responses
         let permitted = self.expected_responses.read().get(&src).is_some();
 
@@ -123,5 +124,6 @@ impl RecvHandler {
 
         // send the filtered decoded packet to the handler.
         self.handler.send(inbound).await.unwrap_or_else(|_| ());
+        println!("RECV: Handling inbound packet complete");
     }
 }

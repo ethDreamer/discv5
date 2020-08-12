@@ -52,9 +52,11 @@ impl SendHandler {
         loop {
             tokio::select! {
                 Some(packet) = self.handler_recv.recv() => {
+                    println!("SEND: Sending packet");
                     if let Err(e) = self.send.send_to(&packet.packet.encode(), &packet.dst).await {
                         trace!("Could not send packet. Error: {:?}", e);
                     }
+                    println!("SEND: Sending packet completed");
                 }
                 _ = &mut self.exit => {
                     debug!("Send handler shutdown");

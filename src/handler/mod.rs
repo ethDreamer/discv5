@@ -287,7 +287,9 @@ impl Handler {
                            let id = request.id;
                            if let Err(request_error) =  self.send_request(contact, *request).await {
                                // If the sending failed report to the application
+                               println!("HANDLER: Sending RPC failure");
                                self.outbound_channel.send(HandlerResponse::RequestFailed(id, request_error)).await.unwrap_or_else(|_| ());
+                               println!("HANDLER: Completed Sending RPC failure");
                            }
                         }
                         HandlerRequest::Response(dst, response) => self.send_response(dst, *response).await,
@@ -396,12 +398,14 @@ impl Handler {
         contact: NodeContact,
         request: Request,
     ) -> Result<(), RequestError> {
+        println!("Handler Sending Request");
         let node_address = contact
             .node_address()
             .map_err(|e| RequestError::InvalidEnr(e.into()))?;
 
         if node_address.socket_addr == self.listen_socket {
             debug!("Filtered request to self");
+            println!("Handler Sending Request Completed");
             return Err(RequestError::SelfRequest);
         }
 
@@ -412,6 +416,7 @@ impl Handler {
                 .entry(node_address)
                 .or_insert_with(Vec::new)
                 .push((contact, request));
+            println!("Handler Sending Request Completed");
             return Ok(());
         }
         let tag = self.tag(&node_address.node_id);
@@ -440,11 +445,13 @@ impl Handler {
         self.add_expected_response(node_address.socket_addr);
         self.send(node_address.socket_addr, packet).await;
         self.active_requests.insert(node_address, call);
+        println!("Handler Sending Request Completed");
         Ok(())
     }
 
     /// Sends an RPC Response.
     async fn send_response(&mut self, node_address: NodeAddress, response: Response) {
+        println!("HANDLER: Sending response");
         let tag = self.tag(&node_address.node_id);
         // Check for an established session
         if let Some(session) = self.sessions.get(&node_address) {
@@ -453,6 +460,7 @@ impl Handler {
                 Ok(packet) => packet,
                 Err(e) => {
                     warn!("Could not encrypt response: {:?}", e);
+                    println!("HANDLER: Sending response Completed");
                     return;
                 }
             };
@@ -465,16 +473,19 @@ impl Handler {
                 response, node_address.node_id
             );
         }
+        println!("HANDLER: Sending response Completed");
     }
 
     /// This is called in response to a `HandlerResponse::WhoAreYou` event. The applications finds the
     /// highest known ENR for a node then we respond to the node with a WHOAREYOU packet.
     async fn send_challenge(&mut self, wru_ref: WhoAreYouRef, remote_enr: Option<Enr>) {
+        println!("HANDLER: Sending challenge");
         let node_address = wru_ref.0;
         let auth_tag = wru_ref.1;
 
         if self.active_challenges.get(&node_address).is_some() {
             warn!("WHOAREYOU already sent. {}", node_address);
+            println!("HANDLER: Sending challenge complete");
             return;
         }
 
@@ -484,6 +495,7 @@ impl Handler {
                 "Session already established. WHOAREYOU not sent to {}",
                 node_address
             );
+            println!("HANDLER: Sending challenge complete");
             return;
         }
 
@@ -497,6 +509,7 @@ impl Handler {
         self.send(node_address.socket_addr, packet).await;
         self.active_challenges
             .insert(node_address, Challenge { nonce, remote_enr });
+        println!("HANDLER: Sending challenge complete");
     }
 
     /* Packet Handling */
@@ -510,18 +523,21 @@ impl Handler {
         id_nonce: Nonce,
         enr_seq: u64,
     ) {
+        println!("HANDLER: Handle challenge");
         // It must come from a source that we have an outgoing message to and match an
         // authentication tag
         let mut request_call = {
             match self.active_requests_auth.remove(&token) {
                 None => {
                     debug!("Received a WHOAREYOU packet that references an unknown or expired request. source: {:?}, auth_tag: {}", src, hex::encode(token));
+                    println!("HANDLER: Handle challenge complete");
                     return;
                 }
                 Some(address) => {
                     if address.socket_addr != src {
                         warn!("Invalid source responding to message. Dropping. Source: {:?}, expected: {}", src, address.socket_addr);
                         self.active_requests_auth.insert(token, address);
+                        println!("HANDLER: Handle challenge complete");
                         return;
                     } else {
                         self.active_requests
@@ -546,6 +562,7 @@ impl Handler {
             );
             self.fail_request(request_call, RequestError::InvalidRemotePacket)
                 .await;
+            println!("HANDLER: Handle challenge complete");
             return;
         }
 
@@ -577,6 +594,7 @@ impl Handler {
                 error!("Could not generate a session. Error: {:?}", e);
                 self.fail_request(request_call, RequestError::InvalidRemotePacket)
                     .await;
+                println!("HANDLER: Handle challenge complete");
                 return;
             }
         };
@@ -625,6 +643,7 @@ impl Handler {
                     );
                     self.fail_request(request_call, RequestError::InvalidRemoteEnr)
                         .await;
+                    println!("HANDLER: Handle challenge complete");
                     return;
                 }
             }
@@ -659,6 +678,7 @@ impl Handler {
             }
         }
         self.new_session(node_address, session);
+        println!("HANDLER: Handle challenge complete");
     }
 
     /// Verifies a Node ENR to it's observed address. If it fails, any associated session is also
@@ -678,6 +698,7 @@ impl Handler {
         auth_header: AuthHeader,
         message: &[u8],
     ) {
+        println!("HANDLER: Handle Auth message");
         // Needs to match an outgoing challenge packet (so we have the required nonce to be signed). If it doesn't we drop the packet.
         // This will lead to future outgoing challenges if they proceed to send further encrypted
         // packets.
@@ -737,9 +758,11 @@ impl Handler {
                 node_address
             );
         }
+        println!("HANDLER: Handle Auth message Complete");
     }
 
     async fn send_next_request(&mut self, node_address: NodeAddress) {
+        println!("HANDLER: Sending next request");
         // ensure we are not over writing any existing requests
 
         if self.active_requests.get(&node_address).is_none() {
@@ -757,6 +780,8 @@ impl Handler {
                     .unwrap_or_else(|_| ());
             }
         }
+
+        println!("HANDLER: Sending next request Complete");
     }
 
     /// Handle a standard message that does not contain an authentication header.
@@ -768,6 +793,7 @@ impl Handler {
         message: &[u8],
         tag: Tag,
     ) {
+        println!("HANDLER: Handling message");
         // check if we have an available session
         if let Some(session) = self.sessions.get_mut(&node_address) {
             // attempt to decrypt and process the message.
@@ -776,6 +802,7 @@ impl Handler {
                     Ok(p) => p,
                     Err(e) => {
                         warn!("Failed to decode message. Error: {:?}", e);
+                        println!("HANDLER: Handling message complete");
                         return;
                     }
                 },
@@ -793,6 +820,7 @@ impl Handler {
                         .send(HandlerResponse::WhoAreYou(whoareyou_ref))
                         .await
                         .unwrap_or_else(|_| ());
+                    println!("HANDLER: Handling message complete");
                     return;
                 }
             };
@@ -824,6 +852,7 @@ impl Handler {
                                                 .send(HandlerResponse::Established(enr))
                                                 .await
                                                 .unwrap_or_else(|_| ());
+                                            println!("HANDLER: Handling message complete");
                                             return;
                                         }
                                     }
@@ -833,6 +862,7 @@ impl Handler {
                             debug!("Session failed invalid ENR response");
                             self.fail_session(&node_address, RequestError::InvalidRemoteEnr)
                                 .await;
+                            println!("HANDLER: Handling message complete");
                             return;
                         }
                     }
@@ -851,11 +881,14 @@ impl Handler {
                 .await
                 .unwrap_or_else(|_| ());
         }
+
+        println!("HANDLER: Handling message complete");
     }
 
     /// Handles a response to a request. Re-inserts the request call if the response is a multiple
     /// Nodes response.
     async fn handle_response(&mut self, node_address: NodeAddress, response: Response) {
+        println!("HANDLER: Handling response");
         // Find a matching request, if any
         if let Some(mut request_call) = self.active_requests.remove(&node_address) {
             if request_call.id() != response.id {
@@ -865,6 +898,7 @@ impl Handler {
                 );
                 // add the request back and reset the timer
                 self.active_requests.insert(node_address, request_call);
+                println!("HANDLER: Handling response completed");
                 return;
             }
 
@@ -886,6 +920,7 @@ impl Handler {
                                 .send(HandlerResponse::Response(node_address, Box::new(response)))
                                 .await
                                 .unwrap_or_else(|_| ());
+                            println!("HANDLER: Handling response completed");
                             return;
                         }
                     } else {
@@ -898,6 +933,7 @@ impl Handler {
                             .send(HandlerResponse::Response(node_address, Box::new(response)))
                             .await
                             .unwrap_or_else(|_| ());
+                        println!("HANDLER: Handling response completed");
                         return;
                     }
                 }
@@ -925,6 +961,7 @@ impl Handler {
             // dropped here.
             trace!("Late response from node: {}", node_address);
         }
+        println!("HANDLER: Handling response completed");
     }
 
     /// Calculates the src `NodeId` given a tag.
@@ -974,6 +1011,7 @@ impl Handler {
     }
 
     async fn fail_request(&mut self, request_call: RequestCall, error: RequestError) {
+        println!("HANDLER: Failing request");
         // The Request has expired, remove the session.
         let auth_tag = request_call
             .packet
@@ -993,9 +1031,11 @@ impl Handler {
             .node_address()
             .expect("All Request calls have been sanitized");
         self.fail_session(&node_address, error).await;
+        println!("HANDLER: Failing request completed");
     }
 
     async fn fail_session(&mut self, node_address: &NodeAddress, error: RequestError) {
+        println!("HANDLER: Failing session");
         self.sessions.remove(&node_address);
         METRICS
             .active_sessions
@@ -1010,15 +1050,18 @@ impl Handler {
                 .await
                 .unwrap_or_else(|_| ());
         }
+        println!("HANDLER: Failing session completed");
     }
 
     /// Sends a packet to the send handler to be encoded and sent.
     async fn send(&mut self, dst: SocketAddr, packet: Packet) {
+        println!("HANDLER: Sending packet");
         let outbound_packet = socket::OutboundPacket { dst, packet };
         self.socket
             .send
             .send(outbound_packet)
             .await
             .unwrap_or_else(|_| ());
+        println!("HANDLER: Sending packet complete");
     }
 }

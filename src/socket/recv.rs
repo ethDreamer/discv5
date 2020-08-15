@@ -104,6 +104,7 @@ impl RecvHandler {
         // addresses.
         if !permitted && !self.filter.initial_pass(&src) {
             trace!("Packet filtered from source: {:?}", src);
+            println!("RECV: Handling inbound completed");
             return;
         }
         // Decodes the packet
@@ -111,12 +112,14 @@ impl RecvHandler {
             Ok(p) => p,
             Err(e) => {
                 debug!("Packet decoding failed: {:?}", e); // could not decode the packet, drop it
+                println!("RECV: Handling inbound completed");
                 return;
             }
         };
 
         // Perform packet-level filtering
         if !permitted && !self.filter.final_pass(&src, &packet) {
+            println!("RECV: Handling inbound completed");
             return;
         }
 

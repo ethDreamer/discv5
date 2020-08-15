@@ -468,6 +468,7 @@ impl Handler {
         } else {
             // Either the session is being established or has expired. We simply drop the
             // response in this case.
+            println!("HANDLER: Sending response completed");
             warn!(
                 "Session is not established. Dropping response {} for node: {}",
                 response, node_address.node_id

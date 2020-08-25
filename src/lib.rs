@@ -120,7 +120,7 @@ mod node_info;
 pub mod packet;
 pub mod permit_ban;
 mod query_pool;
-mod rpc;
+pub mod rpc;
 pub mod service;
 mod socket;
 

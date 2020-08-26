@@ -7,5 +7,7 @@ use discv5::rpc::Message;
 fuzz_target!(|data: &[u8]| {
     // fuzzed code goes here
 
-    Message::decode(data.to_vec());
+    if let Ok(message) = Message::decode(data.to_vec()) {
+        message.encode();
+    }
 });

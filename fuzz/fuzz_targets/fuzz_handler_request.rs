@@ -1,4 +1,6 @@
 #![no_main]
+#[macro_use]
+extern crate lazy_static;
 use libfuzzer_sys::fuzz_target;
 use std::net::{IpAddr, SocketAddr};
 use discv5::rpc::{Message, Request};
@@ -6,8 +8,12 @@ use discv5::{Discv5ConfigBuilder, handler::{Handler, HandlerRequest, HandlerResp
 use discv5::enr::{CombinedKey, EnrBuilder};
 use parking_lot::RwLock;
 use std::sync::Arc;
-use tokio::{time::delay_for, select};
+use tokio::{time::delay_for, select, runtime::Runtime};
 use std::time::Duration;
+
+lazy_static! {
+    static ref RUNTIME: Runtime = Runtime::new().unwrap();
+}
 
 macro_rules! arc_rw {
     ( $x: expr ) => {
@@ -31,9 +37,8 @@ fn send_message(message: Message) {
     let key1 = CombinedKey::generate_secp256k1();
     let key2 = CombinedKey::generate_secp256k1();
 
-    let rt = tokio::runtime::Runtime::new().unwrap();
     let config = Discv5ConfigBuilder::new()
-        .executor(Box::new(TokioExecutor(rt.handle().clone())))
+        .executor(Box::new(TokioExecutor(RUNTIME.handle().clone())))
         .build();
 
     let sender_enr = EnrBuilder::new("v4")

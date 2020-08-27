@@ -14,6 +14,9 @@ libfuzzer-sys = "0.3"
 env_logger = "0.7.1"
 tokio = { version = "0.2.21", features = ["time", "rt-threaded", "macros"] }
 parking_lot = "0.11.0"
+lazy_static = "1.4.0"
+sha2 = "0.8.1"
+futures = "0.3.5"
 
 [dependencies.discv5]
 path = ".."
@@ -22,38 +25,38 @@ path = ".."
 [workspace]
 members = ["."]
 
-[[bin]]
-name = "fuzz_packet"
-path = "fuzz_targets/fuzz_packet.rs"
-test = false
-doc = false
-
-[[bin]]
-name = "fuzz_message"
-path = "fuzz_targets/fuzz_message.rs"
-test = false
-doc = false
-
-[[bin]]
-name = "fuzz_target_3"
-path = "fuzz_targets/fuzz_target_3.rs"
-test = false
-doc = false
-
-[[bin]]
-name = "fuzz_packet_140"
-path = "fuzz_targets/fuzz_packet_140.rs"
-test = false
-doc = false
-
-[[bin]]
-name = "fuzz_process_packet"
-path = "fuzz_targets/fuzz_process_packet.rs"
-test = false
-doc = false
+# [[bin]]
+# name = "fuzz_packet"
+# path = "fuzz_targets/fuzz_packet.rs"
+# test = false
+# doc = false
+# 
+# [[bin]]
+# name = "fuzz_message"
+# path = "fuzz_targets/fuzz_message.rs"
+# test = false
+# doc = false
+# 
+# [[bin]]
+# name = "fuzz_packet_140"
+# path = "fuzz_targets/fuzz_packet_140.rs"
+# test = false
+# doc = false
+# 
+# [[bin]]
+# name = "fuzz_process_packet"
+# path = "fuzz_targets/fuzz_process_packet.rs"
+# test = false
+# doc = false
+# 
+# [[bin]]
+# name = "fuzz_handler_request"
+# path = "fuzz_targets/fuzz_handler_request.rs"
+# test = false
+# doc = false
 
 [[bin]]
 name = "fuzz_handler_request"
-path = "fuzz_targets/fuzz_handler_request.rs"
+path = "fuzz_targets/fuzz_handler_request_age.rs"
 test = false
 doc = false

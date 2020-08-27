@@ -36,7 +36,10 @@ use parking_lot::RwLock;
 use sha2::{Digest, Sha256};
 use std::sync::Arc;
 use std::{collections::HashMap, default::Default, net::SocketAddr, sync::atomic::Ordering};
-use tokio::{select, sync::{mpsc, oneshot}};
+use tokio::{
+    select,
+    sync::{mpsc, oneshot},
+};
 
 mod crypto;
 mod hashmap_delay;
@@ -182,7 +185,7 @@ pub struct Handler {
     /// The listening socket to filter out any attempted requests to self.
     listen_socket: SocketAddr,
     /// The discovery v5 UDP socket tasks.
-    socket: Socket,
+    socket: Option<Socket>,
     /// Exit channel to shutdown the handler.
     exit: oneshot::Receiver<()>,
 }
@@ -193,6 +196,51 @@ type HandlerReturn = (
     mpsc::Receiver<HandlerResponse>,
 );
 impl Handler {
+    /// Fuzzing target NOT USED FOR PRODUCTION!
+    pub fn new_fuzz(
+        enr: Arc<RwLock<Enr>>,
+        key: Arc<RwLock<CombinedKey>>,
+        config: Discv5Config,
+    ) -> Self {
+        let (_exit_sender, exit) = oneshot::channel();
+        // create the channels to send/receive messages from the application
+        let (_inbound_send, inbound_channel) = mpsc::unbounded_channel();
+        let (outbound_channel, _outbound_recv) = mpsc::channel(50);
+
+        // Lets the underlying filter know that we are expecting a packet from this source.
+        let filter_expected_responses = Arc::new(RwLock::new(HashMap::new()));
+
+        // Generates the WHOAREYOU magic packet for the local node-id
+        // Will be removed in update
+
+        let node_id = enr.read().node_id();
+
+        // enable the packet filter
+        let mut filter_config = config.filter_config.clone();
+        filter_config.enabled = config.enable_packet_filter;
+
+        Handler {
+            request_retries: config.request_retries,
+            node_id,
+            enr,
+            key,
+            active_requests: HashMapDelay::new(config.request_timeout),
+            active_requests_auth: HashMap::new(),
+            pending_requests: HashMap::new(),
+            filter_expected_responses,
+            sessions: LruCache::with_expiry_duration_and_capacity(
+                config.session_timeout,
+                config.session_cache_capacity,
+            ),
+            active_challenges: LruCache::with_expiry_duration(config.request_timeout * 2),
+            inbound_channel,
+            outbound_channel,
+            listen_socket: "127.0.0.1:9000".parse().unwrap(),
+            socket: None,
+            exit,
+        }
+    }
+
     /// A new Session service which instantiates the UDP socket send/recv tasks.
     pub fn spawn(
         enr: Arc<RwLock<Enr>>,
@@ -267,7 +315,7 @@ impl Handler {
                     inbound_channel,
                     outbound_channel,
                     listen_socket,
-                    socket,
+                    socket: Some(socket),
                     exit,
                 };
                 debug!("Handler Starting");
@@ -294,7 +342,7 @@ impl Handler {
                         HandlerRequest::WhoAreYou(wru_ref, enr) => self.send_challenge(wru_ref, enr).await,
                     }
                 }
-                Some(inbound_packet) = self.socket.recv.next() => {
+                Some(inbound_packet) = self.socket.as_mut().unwrap().recv.next() => {
                     self.process_inbound_packet(inbound_packet).await;
                 }
                 Some(Ok((node_address, pending_request))) = self.active_requests.next() => {
@@ -1015,10 +1063,12 @@ impl Handler {
     /// Sends a packet to the send handler to be encoded and sent.
     async fn send(&mut self, dst: SocketAddr, packet: Packet) {
         let outbound_packet = socket::OutboundPacket { dst, packet };
-        self.socket
-            .send
-            .send(outbound_packet)
-            .await
-            .unwrap_or_else(|_| ());
+        if let Some(socket) = self.socket.as_mut() {
+            socket
+                .send
+                .send(outbound_packet)
+                .await
+                .unwrap_or_else(|_| ());
+        }
     }
 }

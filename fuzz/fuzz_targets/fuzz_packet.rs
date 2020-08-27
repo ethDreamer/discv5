@@ -1,7 +1,5 @@
 #![no_main]
 use libfuzzer_sys::fuzz_target;
-extern crate discv5;
-
 use discv5::packet::Packet;
 
 fuzz_target!(|data: &[u8]| {

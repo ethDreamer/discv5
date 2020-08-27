@@ -11,6 +11,9 @@ cargo-fuzz = true
 
 [dependencies]
 libfuzzer-sys = "0.3"
+env_logger = "0.7.1"
+tokio = { version = "0.2.21", features = ["time", "rt-threaded", "macros"] }
+parking_lot = "0.11.0"
 
 [dependencies.discv5]
 path = ".."
@@ -40,5 +43,17 @@ doc = false
 [[bin]]
 name = "fuzz_packet_140"
 path = "fuzz_targets/fuzz_packet_140.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_process_packet"
+path = "fuzz_targets/fuzz_process_packet.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_handler_request"
+path = "fuzz_targets/fuzz_handler_request.rs"
 test = false
 doc = false

@@ -134,6 +134,6 @@ pub use config::{Discv5Config, Discv5ConfigBuilder};
 pub use error::{Discv5Error, QueryError, RequestError};
 pub use executor::{Executor, TokioExecutor};
 pub use permit_ban::PermitBanList;
-pub use socket::{FilterConfig, FilterConfigBuilder};
+pub use socket::{FilterConfig, FilterConfigBuilder, InboundPacket};
 // re-export the ENR crate
 pub use enr;

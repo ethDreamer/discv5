@@ -36,7 +36,7 @@ use parking_lot::RwLock;
 use sha2::{Digest, Sha256};
 use std::sync::Arc;
 use std::{collections::HashMap, default::Default, net::SocketAddr, sync::atomic::Ordering};
-use tokio::sync::{mpsc, oneshot};
+use tokio::{select, sync::{mpsc, oneshot}};
 
 mod crypto;
 mod hashmap_delay;
@@ -194,7 +194,7 @@ type HandlerReturn = (
 );
 impl Handler {
     /// A new Session service which instantiates the UDP socket send/recv tasks.
-    pub(crate) fn spawn(
+    pub fn spawn(
         enr: Arc<RwLock<Enr>>,
         key: Arc<RwLock<CombinedKey>>,
         listen_socket: SocketAddr,
@@ -280,7 +280,7 @@ impl Handler {
     /// The main execution loop for the handler.
     async fn start(&mut self) {
         loop {
-            tokio::select! {
+            select! {
                 Some(handler_request) = &mut self.inbound_channel.next() => {
                     match handler_request {
                         HandlerRequest::Request(contact, request) => {
@@ -308,7 +308,7 @@ impl Handler {
     }
 
     /// Processes an inbound decoded packet.
-    async fn process_inbound_packet(&mut self, inbound_packet: socket::InboundPacket) {
+    pub async fn process_inbound_packet(&mut self, inbound_packet: socket::InboundPacket) {
         // TODO: Clean these up as NodeAddresses before handling with the new updates
         match inbound_packet.packet {
             Packet::WhoAreYou {

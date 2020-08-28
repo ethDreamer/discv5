@@ -1,9 +1,9 @@
 #![no_main]
 use discv5::enr::{CombinedKey, EnrBuilder, NodeId};
-use discv5::handler::{NodeAddress, NodeContact, Handler, Session, Keys, crypto};
-use discv5::packet::{Tag};
-use discv5::{Discv5ConfigBuilder, Enr, InboundPacket};
+use discv5::handler::{crypto, Handler, Keys, NodeAddress, NodeContact, Session};
+use discv5::packet::Tag;
 use discv5::rpc::Message;
+use discv5::{Discv5ConfigBuilder, Enr, InboundPacket};
 
 use libfuzzer_sys::fuzz_target;
 use parking_lot::RwLock;
@@ -99,7 +99,9 @@ fn send_message(message_bytes: &[u8]) {
 
     // Handler A has a Session with B
     let node_address = NodeAddress::new(inbound_packet.src, ENR_B.node_id());
-    HANDLER.write().new_session(node_address.clone(), SESSIONS[0].clone());
+    HANDLER
+        .write()
+        .new_session(node_address.clone(), SESSIONS[0].clone());
 
     // Handler A process Packet from B
     futures::executor::block_on(async move {

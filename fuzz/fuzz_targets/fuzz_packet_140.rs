@@ -1,6 +1,6 @@
 #![no_main]
+use discv5::packet::{Packet, AUTH_TAG_LENGTH, MAGIC_LENGTH, TAG_LENGTH};
 use libfuzzer_sys::fuzz_target;
-use discv5::packet::{TAG_LENGTH, AUTH_TAG_LENGTH, MAGIC_LENGTH, Packet};
 
 fuzz_target!(|data: &[u8]| {
     if data.len() > TAG_LENGTH + AUTH_TAG_LENGTH + MAGIC_LENGTH {

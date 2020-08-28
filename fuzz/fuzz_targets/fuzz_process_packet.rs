@@ -1,17 +1,17 @@
 #![no_main]
-use libfuzzer_sys::fuzz_target;
-use std::net::{IpAddr, SocketAddr};
-use discv5::packet::Packet;
-use discv5::{Discv5ConfigBuilder, handler::Handler, InboundPacket, TokioExecutor};
 use discv5::enr::{CombinedKey, EnrBuilder};
+use discv5::packet::Packet;
+use discv5::{handler::Handler, Discv5ConfigBuilder, InboundPacket, TokioExecutor};
+use libfuzzer_sys::fuzz_target;
 use parking_lot::RwLock;
+use std::net::{IpAddr, SocketAddr};
 use std::sync::Arc;
-use tokio::{time::delay_for, select};
 use std::time::Duration;
+use tokio::{select, time::delay_for};
 
 fuzz_target!(|data: &[u8]| {
     if data.len() > 32 {
-        let mut magic_data = [0u8;32];
+        let mut magic_data = [0u8; 32];
         magic_data.copy_from_slice(&data[..32]);
         if let Ok(packet) = Packet::decode(&data[32..], &magic_data) {
             init();

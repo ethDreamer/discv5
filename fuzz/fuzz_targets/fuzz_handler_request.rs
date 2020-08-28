@@ -1,111 +1,57 @@
 #![no_main]
+use discv5::enr::{CombinedKey, EnrBuilder};
+use discv5::{handler::Handler, packet::Packet, Discv5ConfigBuilder, Enr, InboundPacket};
+use libfuzzer_sys::fuzz_target;
+use parking_lot::RwLock;
+use sha2::{Digest, Sha256};
+use std::sync::Arc;
+
+pub type Magic = [u8; 32];
 #[macro_use]
 extern crate lazy_static;
-use libfuzzer_sys::fuzz_target;
-use std::net::{IpAddr, SocketAddr};
-use discv5::rpc::{Message, Request};
-use discv5::{Discv5ConfigBuilder, handler::{Handler, HandlerRequest, HandlerResponse}, InboundPacket, TokioExecutor};
-use discv5::enr::{CombinedKey, EnrBuilder};
-use parking_lot::RwLock;
-use std::sync::Arc;
-use tokio::{time::delay_for, select, runtime::Runtime};
-use std::time::Duration;
 
 lazy_static! {
-    static ref RUNTIME: Runtime = Runtime::new().unwrap();
-}
+    static ref KEY: CombinedKey = CombinedKey::generate_secp256k1();
+    static ref ENR: Enr = {
+        let combined_key: &CombinedKey = &KEY;
+        EnrBuilder::new("v4").build(combined_key).unwrap()
+    };
+    static ref HANDLER: Arc<RwLock<Handler>> = {
+        let config = Discv5ConfigBuilder::new().build();
+        let mut bytes = KEY.encode();
 
-macro_rules! arc_rw {
-    ( $x: expr ) => {
-        Arc::new(RwLock::new($x))
+        let combined_key = CombinedKey::secp256k1_from_bytes(&mut bytes).unwrap();
+        let enr: Enr = ENR.clone();
+        Arc::new(RwLock::new(Handler::new_fuzz(
+            Arc::new(RwLock::new(enr)),
+            Arc::new(RwLock::new(combined_key)),
+            config,
+        )))
+    };
+    static ref MAGIC: Magic = {
+        let mut hasher = Sha256::new();
+        hasher.input(ENR.node_id().raw());
+        hasher.input(b"WHOAREYOU");
+        let mut magic: Magic = Default::default();
+        magic.copy_from_slice(&hasher.result());
+        magic
     };
 }
 
 fuzz_target!(|data: &[u8]| {
-    if let Ok(message) = Message::decode(data.to_vec()) {
-        send_message(message);
+    if let Ok(packet) = Packet::decode(&data, &MAGIC) {
+        let inbound_packet = InboundPacket {
+            src: "127.0.0.1:9000".parse().unwrap(),
+            packet,
+        };
+        send_message(inbound_packet);
     }
 });
 
-fn send_message(message: Message) {
+fn send_message(inbound_packet: InboundPacket) {
     let _ = env_logger::builder().is_test(true).try_init();
 
-    let sender_port = 5000;
-    let receiver_port = 5001;
-    let ip: IpAddr = "127.0.0.1".parse().unwrap();
-
-    let key1 = CombinedKey::generate_secp256k1();
-    let key2 = CombinedKey::generate_secp256k1();
-
-    let config = Discv5ConfigBuilder::new()
-        .executor(Box::new(TokioExecutor(RUNTIME.handle().clone())))
-        .build();
-
-    let sender_enr = EnrBuilder::new("v4")
-        .ip(ip)
-        .udp(sender_port)
-        .build(&key1)
-        .unwrap();
-    let receiver_enr = EnrBuilder::new("v4")
-        .ip(ip)
-        .udp(receiver_port)
-        .build(&key2)
-        .unwrap();
-
-    let (_exit_send, sender_handler, _) = Handler::spawn(
-        arc_rw!(sender_enr.clone()),
-        arc_rw!(key1),
-        sender_enr.udp_socket().unwrap(),
-        config.clone(),
-    )
-    .unwrap();
-
-    let (_exit_recv, recv_send, mut receiver_handler) = Handler::spawn(
-        arc_rw!(receiver_enr.clone()),
-        arc_rw!(key2),
-        receiver_enr.udp_socket().unwrap(),
-        config,
-    )
-    .unwrap();
-
-
-    // Send HandlerRequest to receiver
-    match message {
-        Message::Request(req) => {
-            let send_message = Box::new(req);
-            let _ = sender_handler.send(HandlerRequest::Request(
-                receiver_enr.into(),
-                send_message.clone(),
-            ));
-            // Force the receiver to handle it
-            let receiver = async move {
-                loop {
-                    if let Some(message) = receiver_handler.recv().await {
-                        match message {
-                            HandlerResponse::WhoAreYou(wru_ref) => {
-                                let _ = recv_send
-                                .send(HandlerRequest::WhoAreYou(wru_ref, Some(sender_enr.clone())));
-                            }
-                            HandlerResponse::Request(_, request) => {
-                                assert_eq!(request, send_message);
-                                return;
-                            }
-                            _ => {}
-                        }
-                    }
-                }
-            };
-
-            // Ensure messages were received and processed within timeout.
-            async {
-                select! {
-                    _ = receiver => {}
-                    _ = delay_for(Duration::from_millis(100)) => {
-                        panic!("Test timed out");
-                    }
-                }
-            };
-        }
-        _ => {}
-    }
+    futures::executor::block_on(async move {
+        HANDLER.write().process_inbound_packet(inbound_packet).await;
+    })
 }

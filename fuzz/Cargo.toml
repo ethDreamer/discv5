@@ -25,38 +25,32 @@ path = ".."
 [workspace]
 members = ["."]
 
-# [[bin]]
-# name = "fuzz_packet"
-# path = "fuzz_targets/fuzz_packet.rs"
-# test = false
-# doc = false
-# 
-# [[bin]]
-# name = "fuzz_message"
-# path = "fuzz_targets/fuzz_message.rs"
-# test = false
-# doc = false
-# 
-# [[bin]]
-# name = "fuzz_packet_140"
-# path = "fuzz_targets/fuzz_packet_140.rs"
-# test = false
-# doc = false
-# 
-# [[bin]]
-# name = "fuzz_process_packet"
-# path = "fuzz_targets/fuzz_process_packet.rs"
-# test = false
-# doc = false
-# 
-# [[bin]]
-# name = "fuzz_handler_request"
-# path = "fuzz_targets/fuzz_handler_request.rs"
-# test = false
-# doc = false
+[[bin]]
+name = "fuzz_packet"
+path = "fuzz_targets/fuzz_packet.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_message"
+path = "fuzz_targets/fuzz_message.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_packet_140"
+path = "fuzz_targets/fuzz_packet_140.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_process_packet"
+path = "fuzz_targets/fuzz_process_packet.rs"
+test = false
+doc = false
 
 [[bin]]
 name = "fuzz_handler_request"
-path = "fuzz_targets/fuzz_handler_request_age.rs"
+path = "fuzz_targets/fuzz_handler_request.rs"
 test = false
 doc = false

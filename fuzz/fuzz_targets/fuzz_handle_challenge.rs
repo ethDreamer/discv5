@@ -21,7 +21,7 @@ lazy_static! {
         let mut bytes = KEY.encode();
 
         let combined_key = CombinedKey::secp256k1_from_bytes(&mut bytes).unwrap();
-        let enr: Enr = ENR.to_string().parse().unwrap();
+        let enr: Enr = ENR.clone();
         Arc::new(RwLock::new(Handler::new_fuzz(
             Arc::new(RwLock::new(enr)),
             Arc::new(RwLock::new(combined_key)),
@@ -41,7 +41,7 @@ lazy_static! {
 fuzz_target!(|data: &[u8]| {
     if let Ok(packet) = Packet::decode(&data, &MAGIC) {
         let inbound_packet = InboundPacket {
-            src: "1.2.3.4.5:9000".parse().unwrap(),
+            src: "127.0.0.1:9000".parse().unwrap(),
             packet,
         };
         send_message(inbound_packet);

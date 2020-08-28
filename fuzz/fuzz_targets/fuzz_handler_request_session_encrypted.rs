@@ -1,7 +1,7 @@
 #![no_main]
 use discv5::enr::{CombinedKey, EnrBuilder, NodeId};
 use discv5::handler::{NodeAddress, NodeContact, Handler, Session, Keys, crypto};
-use discv5::packet::{Tag, Packet};
+use discv5::packet::{Tag};
 use discv5::{Discv5ConfigBuilder, Enr, InboundPacket};
 use discv5::rpc::Message;
 

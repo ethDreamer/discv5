@@ -51,7 +51,7 @@ pub use crate::node_info::{NodeAddress, NodeContact};
 use crate::metrics::METRICS;
 
 use hashmap_delay::HashMapDelay;
-pub use session::{Session, Keys};
+pub use session::{Keys, Session};
 
 /// Events sent to the handler to be executed.
 #[derive(Debug, Clone, PartialEq)]

@@ -5,6 +5,7 @@ use log::{debug, trace};
 use std::net::SocketAddr;
 use tokio::sync::{mpsc, oneshot};
 
+#[derive(Debug)]
 pub struct OutboundPacket {
     /// The originating socket addr.
     pub dst: SocketAddr,

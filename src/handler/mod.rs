@@ -41,7 +41,7 @@ use tokio::{
     sync::{mpsc, oneshot},
 };
 
-mod crypto;
+pub mod crypto;
 mod hashmap_delay;
 mod session;
 mod tests;
@@ -51,7 +51,7 @@ pub use crate::node_info::{NodeAddress, NodeContact};
 use crate::metrics::METRICS;
 
 use hashmap_delay::HashMapDelay;
-use session::Session;
+pub use session::{Session, Keys};
 
 /// Events sent to the handler to be executed.
 #[derive(Debug, Clone, PartialEq)]
@@ -177,7 +177,7 @@ pub struct Handler {
     /// Currently in-progress handshakes with peers.
     active_challenges: LruCache<NodeAddress, Challenge>,
     /// Established sessions with peers.
-    sessions: LruCache<NodeAddress, Session>,
+    pub sessions: LruCache<NodeAddress, Session>,
     /// The channel that receives requests from the application layer.
     inbound_channel: mpsc::UnboundedReceiver<HandlerRequest>,
     /// The channel to send responses to the application layer.
@@ -1010,7 +1010,7 @@ impl Handler {
         self.active_requests_auth.insert(auth_tag, node_address);
     }
 
-    fn new_session(&mut self, node_address: NodeAddress, session: Session) {
+    pub fn new_session(&mut self, node_address: NodeAddress, session: Session) {
         if let Some(current_session) = self.sessions.get_mut(&node_address) {
             current_session.update(session);
         } else {

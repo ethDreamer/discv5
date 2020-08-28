@@ -87,6 +87,15 @@ pub enum Packet {
 }
 
 impl Packet {
+    /// Sets the tag if applicable
+    pub fn set_tag(&mut self, new_tag: Tag) {
+        match self {
+            Packet::Message { tag, .. } => *tag = new_tag,
+            Packet::RandomPacket { tag, .. } => *tag = new_tag,
+            Packet::AuthMessage { tag, .. } => *tag = new_tag,
+            _ => {}
+        };
+    }
     /// Generates a Packet::Random given a `tag`.
     pub fn random(tag: Tag) -> Packet {
         let data: Vec<u8> = (0..44).map(|_| rand::random::<u8>()).collect();

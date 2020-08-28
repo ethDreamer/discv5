@@ -4,21 +4,22 @@ use crate::packet::AuthResponse;
 use enr::{CombinedKey, NodeId};
 use zeroize::Zeroize;
 
-#[derive(Zeroize, PartialEq)]
-pub(crate) struct Keys {
+#[derive(Zeroize, PartialEq, Clone)]
+pub struct Keys {
     /// The Authentication response key.
-    auth_resp_key: [u8; 16],
+    pub auth_resp_key: [u8; 16],
 
     /// The encryption key.
-    encryption_key: [u8; 16],
+    pub encryption_key: [u8; 16],
 
     /// The decryption key.
-    decryption_key: [u8; 16],
+    pub decryption_key: [u8; 16],
 }
 
 /// A Session containing the encryption/decryption keys. These are kept individually for a given
 /// node.
-pub(crate) struct Session {
+#[derive(Clone)]
+pub struct Session {
     /// The current keys used to encrypt/decrypt messages.
     keys: Keys,
     /// If a new handshake is being established, these keys can be tried to determine if this new
@@ -50,7 +51,7 @@ impl Session {
 
     /// Uses the current `Session` to encrypt a message. Encrypt packets with the current session
     /// key if we are awaiting a response from AuthMessage.
-    pub(crate) fn encrypt_message(&self, tag: Tag, message: &[u8]) -> Result<Packet, Discv5Error> {
+    pub fn encrypt_message(&self, tag: Tag, message: &[u8]) -> Result<Packet, Discv5Error> {
         //TODO: Establish a counter to prevent repeats of nonce
         let auth_tag: AuthTag = rand::random();
 

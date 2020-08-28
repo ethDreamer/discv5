@@ -54,3 +54,15 @@ name = "fuzz_handler_request"
 path = "fuzz_targets/fuzz_handler_request.rs"
 test = false
 doc = false
+
+[[bin]]
+name = "fuzz_handler_request_session"
+path = "fuzz_targets/fuzz_handler_request_session.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_handler_request_session_encrypted"
+path = "fuzz_targets/fuzz_handler_request_session_encrypted.rs"
+test = false
+doc = false

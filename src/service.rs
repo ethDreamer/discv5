@@ -283,7 +283,7 @@ impl Service {
                             }
                         }
                         HandlerResponse::RequestFailed(request_id, error) => {
-                            warn!("RPC Request failed: id: {}, error {:?}", request_id, error);
+                            debug!("RPC Request failed: id: {}, error {:?}", request_id, error);
                             self.rpc_failure(request_id, error);
                         }
                     }
